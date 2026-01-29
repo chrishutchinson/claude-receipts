@@ -2,6 +2,8 @@
 
 > Bring receipts from your Claude Code sessions
 
+![A screenshot of an example receipt](screenshot.jpeg)
+
 ## Installation
 
 ```bash
