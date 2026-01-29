@@ -53,11 +53,13 @@ Save to ~/.claude-receipts/projects/[session-slug].html + open browser
 ### Key Components
 
 **Commands** (`src/commands/`)
+
 - `generate.ts` - Main command; auto-detects if called from hook via stdin
 - `setup.ts` - Modifies `~/.claude/settings.json` to install SessionEnd hook
 - `config.ts` - Manages user configuration at `~/.claude-receipts.config.json`
 
 **Core Logic** (`src/core/`)
+
 - `data-fetcher.ts` - Executes `npx ccusage session --json --breakdown` to get usage data
 - `transcript-parser.ts` - Parses `~/.claude/projects/[path].jsonl` for session metadata (slug, timestamps, message counts)
 - `receipt-generator.ts` - Creates ASCII text receipt with Claude logo, location, costs
@@ -65,6 +67,7 @@ Save to ~/.claude-receipts/projects/[session-slug].html + open browser
 - `config-manager.ts` - Handles `~/.claude-receipts.config.json` I/O
 
 **Utils** (`src/utils/`)
+
 - `location.ts` - Location detection chain: CLI flag → config → IP geolocation (geoip-lite) → fallback
 - `formatting.ts` - Currency, number, date/time, duration formatting
 - `ascii-art.ts` - Claude logo and separators for text receipts
@@ -72,33 +75,39 @@ Save to ~/.claude-receipts/projects/[session-slug].html + open browser
 ### Critical Implementation Details
 
 **SessionEnd Hook Integration**
+
 - Hook receives JSON via stdin: `{session_id, transcript_path, cwd, ...}`
 - `GenerateCommand.readStdinIfAvailable()` checks `stdin.isTTY` (false = piped from hook)
 - When from hook: uses `transcript_path` directly, auto-opens browser, no console output
 - Hook cannot output to console (runs after session closes), hence HTML + browser approach
 
 **ccusage Data Format**
+
 - Actual field names are camelCase: `sessionId`, `inputTokens`, `modelBreakdowns`, etc.
 - Session IDs are complex; display names differ from actual IDs
 - `projectPath` format: `"project-name/actual-session-id"` - split to get session ID
 - Only sessions with valid `projectPath` (not "Unknown Project") are usable
 
 **File Naming**
+
 - HTML files use session slug (e.g., `quirky-crafting-floyd.html`), not session ID
 - Session slug comes from first user message in transcript JSONL
 - Fallback to session ID if slug unavailable
 
 **Output Modes**
+
 - `--output html`: Save to `~/.claude-receipts/projects/[slug].html`
 - `--output console`: Display ASCII art in terminal (default for manual use)
 - Hook always uses `--output html` (set during setup)
 
 **Config Philosophy**
+
 - Minimal config: only `version`, optional `location`, optional `timezone`
 - No `outputDirectory`, `enablePNG`, `enableConsole`, `format` - simplified after initial design
 - Output format specified at command level, not config level
 
 **Visual Design**
+
 - Black & white thermal printer aesthetic (no color backgrounds except dark page background)
 - Claude ASCII logo (not "shop" names with emojis)
 - "Thank you for building!" (not "shopping")
@@ -107,6 +116,7 @@ Save to ~/.claude-receipts/projects/[session-slug].html + open browser
 ## Type System
 
 All types in `src/types/`:
+
 - `ccusage.ts` - Matches actual ccusage CLI JSON output (camelCase fields)
 - `transcript.ts` - JSONL message structure and parsed summary
 - `config.ts` - Minimal user configuration
@@ -130,15 +140,20 @@ All types in `src/types/`:
 ## Hook Installation
 
 Setup command modifies `~/.claude/settings.json`:
+
 ```json
 {
   "hooks": {
-    "SessionEnd": [{
-      "hooks": [{
-        "type": "command",
-        "command": "npx claude-receipts@latest generate --output html"
-      }]
-    }]
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx claude-receipts@latest generate --output html"
+          }
+        ]
+      }
+    ]
   }
 }
 ```

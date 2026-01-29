@@ -1,0 +1,19 @@
+{
+  "name": "claude-receipts-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.11.7",
+    "nanoid": "^5.1.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260129.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.61.0"
+  }
+}
