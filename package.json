@@ -1,9 +1,9 @@
 {
   "name": "claude-receipts",
   "version": "1.0.0",
-  "description": "Generate quirky, shareable receipts for your Claude Code usage",
+  "description": "Bring receipts from your Claude Code sessions",
   "license": "MIT",
-  "author": "Claude Receipts Contributors",
+  "author": "Chris Hutchinson <github.com/chrishutchinson>",
   "repository": {
     "type": "git",
     "url": "https://github.com/chrishutchinson/claude-receipts.git"
@@ -37,26 +37,26 @@
     "cli"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
-    "boxen": "^7.1.1",
-    "ccusage": "latest",
-    "chalk": "^5.3.0",
-    "commander": "^12.0.0",
-    "date-fns": "^2.30.0",
-    "date-fns-tz": "^2.0.0",
+    "boxen": "^8.0.1",
+    "ccusage": "^18.0.5",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "execa": "^9.6.1",
-    "fs-extra": "^11.2.0",
+    "fs-extra": "^11.3.3",
     "geoip-lite": "^1.4.10",
-    "ora": "^8.0.1",
+    "ora": "^9.1.0",
     "prompts": "^2.4.2"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/geoip-lite": "^1.4.4",
-    "@types/node": "^20.11.0",
+    "@types/node": "^24.1.0",
     "@types/prompts": "^2.4.9",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3"
   }
 }
