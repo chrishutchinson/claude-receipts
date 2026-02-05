@@ -8,16 +8,21 @@ import { DataFetcher } from "../core/data-fetcher.js";
 import { TranscriptParser } from "../core/transcript-parser.js";
 import { ReceiptGenerator } from "../core/receipt-generator.js";
 import { HtmlRenderer } from "../core/html-renderer.js";
+import { ThermalPrinterRenderer } from "../core/thermal-printer.js";
 import { ConfigManager } from "../core/config-manager.js";
 import { LocationDetector } from "../utils/location.js";
 import type { SessionEndHookData } from "../types/session-hook.js";
+import type { ReceiptData } from "../core/receipt-generator.js";
 
 const execAsync = promisify(exec);
 
+export type OutputFormat = "html" | "console" | "printer";
+
 export interface GenerateOptions {
   session?: string;
-  output?: "html" | "console";
+  output?: string[];
   location?: string;
+  printer?: string;
 }
 
 export class GenerateCommand {
@@ -25,6 +30,7 @@ export class GenerateCommand {
   private transcriptParser = new TranscriptParser();
   private receiptGenerator = new ReceiptGenerator();
   private htmlRenderer = new HtmlRenderer();
+  private thermalPrinter = new ThermalPrinterRenderer();
   private configManager = new ConfigManager();
   private locationDetector = new LocationDetector();
 
@@ -49,9 +55,27 @@ export class GenerateCommand {
       // Fetch session data from ccusage
       spinner.text = "Fetching session data...";
 
-      // When called from hook, we need to find the matching session in ccusage
-      // When called manually, get the most recent session
-      const sessionData = await this.dataFetcher.fetchSessionData();
+      let sessionData;
+      try {
+        if (actualSessionId) {
+          // From hook or when we have the full UUID — fetch directly by ID
+          // for accurate totals (avoids sub-session slice issue with --breakdown)
+          sessionData =
+            await this.dataFetcher.fetchSessionById(actualSessionId);
+        } else {
+          // Manual mode — discover session by prefix/name, then fetch accurate data
+          sessionData =
+            await this.dataFetcher.fetchSessionData(options.session);
+        }
+      } catch (err) {
+        if (stdinData) {
+          // Session not found in ccusage — likely too short or not yet processed.
+          // Exit silently rather than generating a receipt for the wrong session.
+          spinner.stop();
+          return;
+        }
+        throw err;
+      }
 
       // Determine transcript path if not from hook
       if (!transcriptPath) {
@@ -97,31 +121,49 @@ export class GenerateCommand {
 
       // Determine if we should output to console and/or file
       const isFromHook = !!stdinData;
-      const outputFormat = options.output || (isFromHook ? "html" : "console");
+      const outputFormats = [
+        ...new Set(options.output || (isFromHook ? ["html"] : ["console"])),
+      ] as OutputFormat[];
 
-      if (outputFormat === "html") {
-        // Generate HTML and save/open
-        const fileSessionId = actualSessionId || sessionData.sessionId;
-        const fileName = transcriptData.sessionSlug || fileSessionId;
+      const errors: Array<{ format: OutputFormat; error: Error }> = [];
 
-        // Output to ~/.claude-receipts/projects/...
-        const home = process.env.HOME || process.env.USERPROFILE || "";
-        const outputDir = `${home}/.claude-receipts/projects`;
-        const fullPath = `${outputDir}/${fileName}.html`;
+      for (const format of outputFormats) {
+        try {
+          switch (format) {
+            case "printer":
+              await this.outputToPrinter(receiptData, options, config, spinner);
+              break;
+            case "html":
+              await this.outputToHtml(
+                receiptData,
+                receipt,
+                actualSessionId || sessionData.sessionId,
+                transcriptData.sessionSlug,
+                isFromHook,
+              );
+              break;
+            case "console":
+              this.outputToConsole(receipt);
+              break;
+          }
+        } catch (err) {
+          const error =
+            err instanceof Error ? err : new Error("Unknown error");
+          errors.push({ format, error });
 
-        // Generate HTML
-        const html = this.htmlRenderer.generateHtml(receiptData, receipt);
-        await this.saveHtmlFile(html, fullPath);
-
-        // Open in browser (only auto-open from hook)
-        if (isFromHook) {
-          await this.openInBrowser(fullPath);
-        } else {
-          console.log(chalk.cyan("\nTip: Open in browser to view!"));
+          if (outputFormats.length > 1 && !isFromHook) {
+            console.log(
+              chalk.yellow(
+                `\n⚠ ${format} output failed: ${error.message}`,
+              ),
+            );
+          }
         }
-      } else {
-        // Console output
-        this.displayToConsole(receipt);
+      }
+
+      if (errors.length === outputFormats.length) {
+        // All outputs failed — throw the first error
+        throw errors[0].error;
       }
     } catch (error) {
       spinner.fail("Failed to generate receipt");
@@ -134,6 +176,59 @@ export class GenerateCommand {
 
       process.exit(1);
     }
+  }
+
+  /**
+   * Send receipt to thermal printer
+   */
+  private async outputToPrinter(
+    receiptData: ReceiptData,
+    options: GenerateOptions,
+    config: { printer?: string },
+    spinner: ReturnType<typeof ora>,
+  ): Promise<void> {
+    const printerInterface = options.printer || config.printer;
+    if (!printerInterface) {
+      throw new Error(
+        'No printer specified. Use --printer <name> or set via: claude-receipts config --set printer=EPSON_TM_T88V',
+      );
+    }
+
+    spinner.start("Sending to printer...");
+    await this.thermalPrinter.printReceipt(receiptData, printerInterface);
+    spinner.succeed(`Receipt sent to printer: ${printerInterface}`);
+  }
+
+  /**
+   * Save receipt as HTML and optionally open in browser
+   */
+  private async outputToHtml(
+    receiptData: ReceiptData,
+    receipt: string,
+    sessionId: string,
+    sessionSlug: string | undefined,
+    isFromHook: boolean,
+  ): Promise<void> {
+    const fileName = sessionSlug || sessionId;
+    const home = process.env.HOME || process.env.USERPROFILE || "";
+    const outputDir = `${home}/.claude-receipts/projects`;
+    const fullPath = `${outputDir}/${fileName}.html`;
+
+    const html = this.htmlRenderer.generateHtml(receiptData, receipt);
+    await this.saveHtmlFile(html, fullPath);
+
+    if (isFromHook) {
+      await this.openInBrowser(fullPath);
+    } else {
+      console.log(chalk.cyan("\nTip: Open in browser to view!"));
+    }
+  }
+
+  /**
+   * Display receipt to console with formatting
+   */
+  private outputToConsole(receipt: string): void {
+    this.displayToConsole(receipt);
   }
 
   /**

@@ -64,13 +64,27 @@ export class SetupCommand {
         message: "Default location (leave blank to auto-detect):",
         initial: "",
       },
+      {
+        type: "multiselect",
+        name: "outputs",
+        message: "Output formats for the SessionEnd hook:",
+        choices: [
+          { title: "HTML (opens in browser)", value: "html", selected: true },
+          { title: "Thermal printer", value: "printer" },
+        ],
+        hint: "- Space to select, Enter to confirm",
+        instructions: false,
+      },
     ]);
 
     // User cancelled
-    if (answers.location === undefined) {
+    if (answers.location === undefined || answers.outputs === undefined) {
       console.log(chalk.yellow("\nSetup cancelled"));
       return;
     }
+
+    const outputs: string[] =
+      answers.outputs.length > 0 ? answers.outputs : ["html"];
 
     const spinner = ora("Setting up hook...").start();
 
@@ -85,23 +99,31 @@ export class SetupCommand {
       spinner.text = "Config saved...";
 
       // Modify settings.json
-      await this.addHookToSettings();
+      await this.addHookToSettings(outputs);
       spinner.text = "Hook installed...";
 
       spinner.succeed("Setup complete!");
 
       console.log(chalk.green("\n✓ SessionEnd hook installed"));
       console.log(
-        chalk.gray(`  Receipts will be saved to: ~/.claude-receipts/projects/`),
+        chalk.gray(`  Outputs: ${outputs.join(", ")}`),
       );
       console.log(
         chalk.gray(`  Config file: ${this.configManager.getConfigPath()}\n`),
       );
-      console.log(
-        chalk.cyan(
-          "HTML receipts will now open in your browser when you exit Claude Code sessions!\n",
-        ),
-      );
+
+      const tips: string[] = [];
+      if (outputs.includes("html")) {
+        tips.push(
+          "HTML receipts will open in your browser when you exit Claude Code sessions",
+        );
+      }
+      if (outputs.includes("printer")) {
+        tips.push(
+          "Receipts will be sent to your thermal printer (configure with: claude-receipts config --set printer=<name>)",
+        );
+      }
+      console.log(chalk.cyan(tips.join("\n") + "\n"));
     } catch (error) {
       spinner.fail("Setup failed");
       throw error;
@@ -133,7 +155,7 @@ export class SetupCommand {
   /**
    * Add the SessionEnd hook to settings.json
    */
-  private async addHookToSettings(): Promise<void> {
+  private async addHookToSettings(outputs: string[]): Promise<void> {
     // Ensure .claude directory exists
     const claudeDir = join(this.settingsPath, "..");
     if (!existsSync(claudeDir)) {
@@ -183,11 +205,12 @@ export class SetupCommand {
     }
 
     // Add our hook
+    const outputArg = outputs.join(",");
     settings.hooks.SessionEnd.push({
       hooks: [
         {
           type: "command",
-          command: `${hookCommand} --output html`,
+          command: `${hookCommand} --output ${outputArg}`,
         },
       ],
     });
