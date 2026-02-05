@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { GenerateCommand } from "./commands/generate.js";
 import { ConfigCommand } from "./commands/config.js";
 import { SetupCommand } from "./commands/setup.js";
@@ -17,12 +17,24 @@ program
   .command("generate")
   .description("Generate a receipt for a Claude Code session")
   .option("-s, --session <id>", "Specific session ID to generate receipt for")
-  .option(
-    "-o, --output <format>",
-    'Output format: "html" or "console" (default: console)',
-    "console",
+  .addOption(
+    new Option("-o, --output <format...>", "Output format(s): html, console, printer (comma-separated or repeated)")
+      .argParser((value: string, prev: string[] | undefined) => {
+        const formats = value.split(",").map((s) => s.trim()).filter(Boolean);
+        const valid = ["html", "console", "printer"];
+        for (const f of formats) {
+          if (!valid.includes(f)) {
+            throw new Error(`Invalid output format "${f}". Valid formats: ${valid.join(", ")}`);
+          }
+        }
+        return [...(prev || []), ...formats];
+      }),
   )
   .option("-l, --location <text>", "Override location detection")
+  .option(
+    "-p, --printer <interface>",
+    'Printer: "usb" (auto-detect), "usb:VID:PID", "tcp://host:port", or CUPS name',
+  )
   .action(async (options) => {
     const command = new GenerateCommand();
     await command.execute(options);

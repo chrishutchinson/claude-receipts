@@ -1,6 +1,6 @@
 {
   "name": "claude-receipts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bring receipts from your Claude Code sessions",
   "license": "MIT",
   "author": "Chris Hutchinson <github.com/chrishutchinson>",
@@ -50,7 +50,8 @@
     "fs-extra": "^11.3.3",
     "geoip-lite": "^1.4.10",
     "ora": "^9.1.0",
-    "prompts": "^2.4.2"
+    "prompts": "^2.4.2",
+    "usb": "^2.17.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
