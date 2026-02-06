@@ -1,6 +1,14 @@
 # claude-receipts
 
-> Bring receipts from your Claude Code sessions
+> **A note from the author:**
+>
+> This has been one of my favourite creative side projects yet (and just in time for Opus 4.6).
+>
+> I picked up a second hand receipt printer and hooked it up to Claude Code's `SessionEnd` hook. With some `ccusage` wrangling, a receipt is printed, showing a breakdown of that session's spend by model, along with token counts.
+>
+> It's dumb, the receipts are beautiful, and I love it so much.
+>
+> I hope you enjoy it too.
 
 ![A photos of an example printed receipt](thermal-receipt.jpeg)
 
