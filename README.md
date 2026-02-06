@@ -1,4 +1,4 @@
-# claude-receipts
+# Claude Receipts
 
 > **A note from the author:**
 >
