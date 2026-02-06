@@ -2,13 +2,15 @@
 
 > Bring receipts from your Claude Code sessions
 
+![A photos of an example printed receipt](thermal-receipt.jpeg)
+
 <details>
 
-<summary><strong>Examples</strong></summary>
+<summary><strong>More photos / screenshots</strong></summary>
 
-## Thermal printer receipt
+## Full thermal receipt
 
-![A photos of an example printed receipt](thermal-receipt.jpg)
+![A photos of an example printed receipt](full-thermal-receipt.jpeg)
 
 ## HTML receipt
 
