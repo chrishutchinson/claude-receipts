@@ -1,3 +1,4 @@
+import { basename } from "path";
 import { execa } from "execa";
 import type {
   CcusageResponse,
@@ -157,7 +158,7 @@ export class DataFetcher {
       } else {
         // Try matching by project path UUID (exact or prefix)
         match = validSessions.find((s) => {
-          const uuid = s.projectPath!.split("/").pop() || "";
+          const uuid = basename(s.projectPath!);
           return uuid === sessionQuery || uuid.startsWith(sessionQuery);
         });
 
@@ -171,7 +172,7 @@ export class DataFetcher {
         const available = validSessions
           .slice(0, 10)
           .map((s) => {
-            const uuid = s.projectPath!.split("/").pop() || "";
+            const uuid = basename(s.projectPath!);
             const short = uuid.slice(0, 8);
             return `  ${short}  ${s.sessionId.padEnd(20)}  $${s.totalCost.toFixed(2)}`;
           })
@@ -184,7 +185,7 @@ export class DataFetcher {
 
       // Extract the full UUID from the projectPath and re-fetch via --id
       // for accurate totals (--breakdown only shows sub-session slices)
-      const fullUuid = match.projectPath!.split("/").pop();
+      const fullUuid = basename(match.projectPath!);
       if (fullUuid) {
         try {
           const accurate = await this.fetchSessionById(fullUuid);

@@ -11,7 +11,7 @@ export class TranscriptParser {
    */
   async parseTranscript(transcriptPath: string): Promise<ParsedTranscript> {
     // Expand ~ to home directory
-    const expandedPath = transcriptPath.replace(/^~/, process.env.HOME || "");
+    const expandedPath = transcriptPath.replace(/^~/, process.env.HOME || process.env.USERPROFILE || "");
 
     if (!existsSync(expandedPath)) {
       throw new Error(`Transcript file not found: ${transcriptPath}`);

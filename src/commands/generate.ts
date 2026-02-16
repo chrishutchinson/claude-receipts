@@ -1,3 +1,4 @@
+import { basename, join } from "path";
 import { stdin } from "process";
 import chalk from "chalk";
 import boxen from "boxen";
@@ -85,11 +86,10 @@ export class GenerateCommand {
           sessionData.projectPath &&
           sessionData.projectPath !== "Unknown Project"
         ) {
-          const parts = sessionData.projectPath.split("/");
-          actualSessionId = parts[parts.length - 1]; // Last part is the actual session ID
+          actualSessionId = basename(sessionData.projectPath);
 
           const home = process.env.HOME || process.env.USERPROFILE || "";
-          transcriptPath = `${home}/.claude/projects/${sessionData.projectPath}.jsonl`;
+          transcriptPath = join(home, ".claude", "projects", sessionData.projectPath + ".jsonl");
         } else {
           throw new Error(
             "Cannot determine transcript path. Session has no valid project path.",
@@ -211,8 +211,8 @@ export class GenerateCommand {
   ): Promise<void> {
     const fileName = sessionSlug || sessionId;
     const home = process.env.HOME || process.env.USERPROFILE || "";
-    const outputDir = `${home}/.claude-receipts/projects`;
-    const fullPath = `${outputDir}/${fileName}.html`;
+    const outputDir = join(home, ".claude-receipts", "projects");
+    const fullPath = join(outputDir, `${fileName}.html`);
 
     const html = this.htmlRenderer.generateHtml(receiptData, receipt);
     await this.saveHtmlFile(html, fullPath);
