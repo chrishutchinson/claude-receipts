@@ -30,7 +30,9 @@ export class TranscriptParser {
 
     const firstUserMessage = userMessages[0];
     const firstPrompt = this.extractPromptText(firstUserMessage);
-    const sessionSlug = firstUserMessage?.slug || "unknown-session";
+    const rawSlug = firstUserMessage?.slug ?? "";
+    const sessionSlug =
+      /^[a-zA-Z0-9_-]+$/.test(rawSlug) ? rawSlug : "unknown-session";
 
     // Calculate duration
     const timestamps = messages
