@@ -2,7 +2,7 @@ import { stdin } from "process";
 import chalk from "chalk";
 import boxen from "boxen";
 import ora from "ora";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { DataFetcher } from "../core/data-fetcher.js";
 import { TranscriptParser } from "../core/transcript-parser.js";
@@ -14,7 +14,7 @@ import { LocationDetector } from "../utils/location.js";
 import type { SessionEndHookData } from "../types/session-hook.js";
 import type { ReceiptData } from "../core/receipt-generator.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export type OutputFormat = "html" | "console" | "printer";
 
@@ -332,18 +332,14 @@ export class GenerateCommand {
 
     try {
       if (platform === "darwin") {
-        // macOS
-        await execAsync(`open "${filePath}"`);
+        await execFileAsync("open", [filePath]);
       } else if (platform === "win32") {
-        // Windows
-        await execAsync(`start "" "${filePath}"`);
+        await execFileAsync("cmd", ["/c", "start", "", filePath]);
       } else {
-        // Linux
-        await execAsync(`xdg-open "${filePath}"`);
+        await execFileAsync("xdg-open", [filePath]);
       }
     } catch (error) {
       // Silently fail - file is still saved
-      // Can't log error in hook context anyway
     }
   }
 

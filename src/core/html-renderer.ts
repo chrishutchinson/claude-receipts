@@ -432,7 +432,7 @@ export class HtmlRenderer {
       </div>
 
       <div class="footer">
-        <div>CASHIER: ${this.getMainModel(data)}</div>
+        <div>CASHIER: ${this.escapeHtml(this.getMainModel(data))}</div>
         <div class="footer-message">Thank you for building!</div>
         <div class="generated-by">
           Print your own <strong>Claude receipts</strong> with<br>
