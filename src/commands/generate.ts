@@ -138,7 +138,6 @@ export class GenerateCommand {
             case "html":
               await this.outputToHtml(
                 receiptData,
-                receipt,
                 actualSessionId || sessionData.sessionId,
                 transcriptData.sessionSlug,
                 isFromHook,
@@ -202,7 +201,6 @@ export class GenerateCommand {
     await this.thermalPrinter.printReceipt(
       receiptData,
       printerInterface,
-      undefined,
       printerModel,
     );
     spinner.succeed(`Receipt sent to printer: ${printerInterface}`);
@@ -213,7 +211,6 @@ export class GenerateCommand {
    */
   private async outputToHtml(
     receiptData: ReceiptData,
-    receipt: string,
     sessionId: string,
     sessionSlug: string | undefined,
     isFromHook: boolean,
@@ -223,7 +220,7 @@ export class GenerateCommand {
     const outputDir = `${home}/.claude-receipts/projects`;
     const fullPath = `${outputDir}/${fileName}.html`;
 
-    const html = this.htmlRenderer.generateHtml(receiptData, receipt);
+    const html = this.htmlRenderer.generateHtml(receiptData);
     await this.saveHtmlFile(html, fullPath);
 
     if (isFromHook) {
@@ -289,29 +286,6 @@ export class GenerateCommand {
         borderColor: "cyan",
       }),
     );
-  }
-
-  /**
-   * Save receipt to a file
-   */
-  private async saveToFile(
-    receipt: string,
-    outputPath: string,
-    sessionId: string,
-  ): Promise<void> {
-    const { writeFile, mkdir } = await import("fs/promises");
-    const { dirname, resolve } = await import("path");
-
-    const resolvedPath = resolve(this.expandPath(outputPath));
-    const dir = dirname(resolvedPath);
-
-    // Ensure directory exists
-    await mkdir(dir, { recursive: true });
-
-    // Write receipt to file
-    await writeFile(resolvedPath, receipt, "utf-8");
-
-    console.log(chalk.green(`Receipt saved to: ${resolvedPath}`));
   }
 
   /**

@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { Command, Option } from "commander";
 import { GenerateCommand } from "./commands/generate.js";
 import { ConfigCommand } from "./commands/config.js";
 import { SetupCommand } from "./commands/setup.js";
+
+const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+const { version } = JSON.parse(readFileSync(pkgPath, "utf-8"));
 
 const program = new Command();
 
 program
   .name("claude-receipts")
   .description("Generate quirky, shareable receipts for your Claude Code usage")
-  .version("1.1.0");
+  .version(version);
 
 // Generate command
 program

@@ -2,6 +2,7 @@ import { createConnection } from "net";
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { ReceiptData } from "./receipt-generator.js";
+import type { PrinterModel } from "../types/config.js";
 import {
   formatCurrency,
   formatNumber,
@@ -17,8 +18,6 @@ const REPO_URL = "https://github.com/chrishutchinson/claude-receipts";
 
 // Epson USB vendor ID
 const EPSON_VENDOR_ID = 0x04b8;
-
-export type PrinterModel = "t88v" | "t88vii";
 
 // Known Epson TM-T88-series USB product IDs
 const PRODUCT_IDS: Record<PrinterModel, number> = {
@@ -211,10 +210,9 @@ export class ThermalPrinterRenderer {
   async printReceipt(
     data: ReceiptData,
     printerInterface: string,
-    shareUrl?: string,
     printerModel: PrinterModel = DEFAULT_PRINTER_MODEL,
   ): Promise<void> {
-    const buffer = this.buildReceipt(data, shareUrl);
+    const buffer = this.buildReceipt(data);
 
     if (printerInterface.startsWith("tcp://")) {
       await this.sendViaTcp(buffer, printerInterface);
@@ -231,7 +229,7 @@ export class ThermalPrinterRenderer {
   /**
    * Build the full ESC/POS receipt buffer.
    */
-  private buildReceipt(data: ReceiptData, shareUrl?: string): Buffer {
+  private buildReceipt(data: ReceiptData): Buffer {
     const b = new EscPosBuilder();
 
     b.init();

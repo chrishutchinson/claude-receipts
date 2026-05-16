@@ -1,5 +1,4 @@
 import geoip from "geoip-lite";
-import { readFile } from "fs/promises";
 import type { ReceiptConfig } from "../types/config.js";
 
 export class LocationDetector {

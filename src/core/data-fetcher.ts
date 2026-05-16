@@ -123,7 +123,7 @@ export class DataFetcher {
    *
    * @param sessionQuery Optional filter — matches against:
    *   1. Project path UUID (or prefix, e.g. "5ede5ccb")
-   *   2. Session name (e.g. "subagents") — picks the most recent match
+   *   2. Exact session ID (e.g. ccusage's `sessionId` field)
    *   If omitted, returns the first session with a valid project path.
    */
   async fetchSessionData(sessionQuery?: string): Promise<CcusageSession> {

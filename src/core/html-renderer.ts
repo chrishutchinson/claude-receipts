@@ -3,7 +3,6 @@ import {
   formatCurrency,
   formatNumber,
   formatDateTime,
-  formatDuration,
 } from "../utils/formatting.js";
 
 // Shareable receipt data structure (matches worker/src/types.ts)
@@ -66,7 +65,7 @@ export class HtmlRenderer {
   /**
    * Generate HTML receipt with embedded CSS
    */
-  generateHtml(data: ReceiptData, receiptText: string): string {
+  generateHtml(data: ReceiptData): string {
     const shareableData = this.getShareableData(data);
 
     return `<!DOCTYPE html>
