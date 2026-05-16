@@ -10,15 +10,23 @@ import {
 
 const execAsync = promisify(exec);
 
-const WIDTH = 40; // TM-T88V 80mm paper, Font A minus margin
+const WIDTH = 40; // TM-T88V/TM-T88VII 80mm paper, Font A minus margin
 const LEFT_MARGIN_DOTS = 12; // 1 character width at 203 dpi
 
 const REPO_URL = "https://github.com/chrishutchinson/claude-receipts";
 
 // Epson USB vendor ID
 const EPSON_VENDOR_ID = 0x04b8;
-// TM-T88V product ID
-const TM_T88V_PRODUCT_ID = 0x0202;
+
+export type PrinterModel = "t88v" | "t88vii";
+
+// Known Epson TM-T88-series USB product IDs
+const PRODUCT_IDS: Record<PrinterModel, number> = {
+  t88v: 0x0202,
+  t88vii: 0x0e28,
+};
+
+const DEFAULT_PRINTER_MODEL: PrinterModel = "t88v";
 
 // ESC/POS command constants
 const ESC = 0x1b;
@@ -196,14 +204,15 @@ export class ThermalPrinterRenderer {
    *
    * Supported interface formats:
    *   - "tcp://host:port" — send via TCP socket
-   *   - "usb" — auto-detect Epson TM-T88V via libusb
-   *   - "usb:VID:PID" — specific USB vendor/product ID (hex)
+   *   - "usb" — use Epson VID with the PID for `printerModel` (default: TM-T88V)
+   *   - "usb:VID:PID" — specific USB vendor/product ID (hex); ignores `printerModel`
    *   - anything else — treated as a CUPS printer name
    */
   async printReceipt(
     data: ReceiptData,
     printerInterface: string,
     shareUrl?: string,
+    printerModel: PrinterModel = DEFAULT_PRINTER_MODEL,
   ): Promise<void> {
     const buffer = this.buildReceipt(data, shareUrl);
 
@@ -213,7 +222,7 @@ export class ThermalPrinterRenderer {
       printerInterface === "usb" ||
       printerInterface.startsWith("usb:")
     ) {
-      await this.sendViaUsb(buffer, printerInterface);
+      await this.sendViaUsb(buffer, printerInterface, printerModel);
     } else {
       await this.sendViaCups(buffer, printerInterface);
     }
@@ -329,15 +338,21 @@ export class ThermalPrinterRenderer {
    * Send buffer directly to a USB printer via libusb.
    *
    * @param buffer ESC/POS data
-   * @param spec "usb" for auto-detect, or "usb:VID:PID" for specific device
+   * @param spec "usb" to use Epson VID with the PID for `model`,
+   *             or "usb:VID:PID" for a specific device (overrides `model`)
+   * @param model Epson model whose PID to use when `spec === "usb"`
    */
-  private async sendViaUsb(buffer: Buffer, spec: string): Promise<void> {
+  private async sendViaUsb(
+    buffer: Buffer,
+    spec: string,
+    model: PrinterModel,
+  ): Promise<void> {
     const { findByIds, getDeviceList, OutEndpoint } = await import("usb");
 
     let vid = EPSON_VENDOR_ID;
-    let pid = TM_T88V_PRODUCT_ID;
+    let pid = PRODUCT_IDS[model];
 
-    // Parse "usb:VID:PID" if provided
+    // Parse "usb:VID:PID" if provided — explicit override wins over model
     if (spec.startsWith("usb:")) {
       const parts = spec.split(":");
       if (parts.length >= 3) {

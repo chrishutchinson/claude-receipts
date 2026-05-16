@@ -60,8 +60,11 @@ npx claude-receipts generate
 # Generate HTML (saved to ~/.claude-receipts/projects/)
 npx claude-receipts generate --output html
 
-# Print to thermal printer
+# Print to thermal printer (defaults to Epson TM-T88V)
 npx claude-receipts generate --output printer --printer usb
+
+# Print to an Epson TM-T88VII over USB
+npx claude-receipts generate --output printer --printer usb --printermodel t88vii
 
 # Multiple outputs (HTML + printer)
 npx claude-receipts generate --output html,printer
@@ -79,12 +82,13 @@ npx claude-receipts generate --location "Paris, France"
 - `-o, --output <format>` - Output format: "html", "console", or "printer" (supports multiple, comma-separated)
 - `-l, --location <text>` - Override location detection
 - `-p, --printer <name>` - Printer interface (e.g., "usb", "tcp://192.168.1.100")
+- `--printermodel <model>` - Epson model when `--printer usb`: `t88v` (default) or `t88vii`
 
 **Output Formats:**
 
 - `html` - Beautiful styled receipt saved to `~/.claude-receipts/projects/`
 - `console` - ASCII art display in terminal
-- `printer` - Send to thermal printer (requires Epson TM-T88V or compatible)
+- `printer` - Send to thermal printer (requires Epson TM-T88V, TM-T88VII, or compatible)
 
 ### `setup`
 
@@ -112,6 +116,7 @@ npx claude-receipts config --show
 npx claude-receipts config --set location="Kuala Lumpur, Malaysia"
 npx claude-receipts config --set timezone="Asia/Kuala_Lumpur"
 npx claude-receipts config --set printer=usb
+npx claude-receipts config --set printermodel=t88vii
 
 # Reset to defaults
 npx claude-receipts config --reset
@@ -122,6 +127,7 @@ npx claude-receipts config --reset
 - `location` - Default location (string)
 - `timezone` - Timezone for dates (string, e.g., "Asia/Macau")
 - `printer` - Default printer interface (string, e.g., "usb" or "tcp://192.168.1.100")
+- `printermodel` - Epson model for USB printing: `t88v` (default) or `t88vii`
 
 ## Configuration
 
@@ -140,6 +146,7 @@ Configuration is stored at `~/.claude-receipts.config.json`.
 - `location` - Custom location string (otherwise auto-detected)
 - `timezone` - Custom timezone for date formatting
 - `printer` - Default printer interface for thermal printing
+- `printermodel` - Epson model for USB printing: `t88v` (default) or `t88vii`
 
 ### Location Detection
 
@@ -173,10 +180,18 @@ Location is determined in this order:
 
 ## Thermal Printing
 
-claude-receipts supports printing to Epson TM-T88V thermal printers (and compatible models) via:
+claude-receipts supports printing to Epson TM-T88V and TM-T88VII thermal printers (and compatible models) via:
 
-- **USB**: Auto-detect via `--printer usb` (or `config --set printer=usb`)
+- **USB**: `--printer usb` (defaults to TM-T88V; add `--printermodel t88vii` for the VII)
 - **Network**: Direct TCP via `--printer tcp://192.168.1.100`
+- **Specific USB device**: `--printer usb:VID:PID` (overrides `--printermodel`)
+
+The two USB Product IDs targeted out of the box (vendor `04b8`):
+
+| Model       | Product ID |
+| ----------- | ---------- |
+| TM-T88V     | `0x0202`   |
+| TM-T88VII   | `0x0e28`   |
 
 > [!WARNING]
 > Your mileage with printing may vary. I have tested with an Epson TM-T88V, printing from macOS and it works well, but other models may have different capabilities or require adjustments to the code. I am more than happy to accept PRs to improve printer compatibility.
@@ -225,10 +240,28 @@ Very short sessions (e.g., just "hello world" + immediate exit) may not appear i
 If using `--printer usb`, ensure:
 
 - Printer is connected via USB
-- Printer is an Epson TM-T88V or compatible ESC/POS model
+- Printer is an Epson TM-T88V, TM-T88VII, or compatible ESC/POS model
+- For a TM-T88VII, pass `--printermodel t88vii` (or `config --set printermodel=t88vii`) so the right USB Product ID is targeted
 - On Linux, you may need permission to access USB devices (`/dev/usb/lp*`)
 
 For network printers, use `--printer tcp://<ip-address>` with port 9100 (default ESC/POS port).
+
+### TM-T88VII over network: command succeeds but nothing prints
+
+If `claude-receipts` reports the receipt was sent successfully but no paper comes out, your TM-T88VII is likely running in **TM-Intelligent** mode with **Secure Print** enabled. In that configuration, port 9100 still accepts TCP connections (and even advertises raw print via mDNS) but the printer silently discards ESC/POS data — real printing happens over the ePOS-Print HTTPS API instead.
+
+How to confirm:
+
+- The printer's web UI shows `TM-i Firmware Version`, an `ePOS-Print Version`, and "Secure printing" enabled.
+- A quick probe returns no response: `printf '\x10\x04\x01' | nc 192.168.1.221 9100` should normally print a single status byte instantly on a TM-T88 in standard mode.
+
+Fix (switches the printer to behave like a TM-T88V on the wire):
+
+1. Open the printer's web UI (`https://<printer-ip>/`).
+2. Advanced → **TM-Intelligent**: disable.
+3. Advanced → ePOS-Device / ePOS-Print → **Secure Print**: disable.
+4. Advanced → Network Printer Settings: confirm raw print is enabled on port 9100.
+5. Save, then **power-cycle the printer** (a soft reset isn't always enough — the print pipeline only fully reattaches on a cold boot).
 
 ## Contributing
 

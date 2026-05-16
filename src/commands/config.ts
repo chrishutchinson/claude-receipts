@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { ConfigManager } from "../core/config-manager.js";
-import type { ReceiptConfig } from "../types/config.js";
+import { PRINTER_MODELS, type ReceiptConfig } from "../types/config.js";
 
 export interface ConfigOptions {
   show?: boolean;
@@ -57,6 +57,10 @@ export class ConfigCommand {
     this.printConfigItem("Location", config.location || "(auto-detect)");
     this.printConfigItem("Timezone", config.timezone || "(system default)");
     this.printConfigItem("Printer", config.printer || "(not set)");
+    this.printConfigItem(
+      "Printer model",
+      config.printermodel || "(default: t88v)",
+    );
 
     console.log("");
   }
@@ -75,11 +79,22 @@ export class ConfigCommand {
     const trimmedKey = key.trim() as keyof ReceiptConfig;
 
     // Validate key
-    const validKeys: (keyof ReceiptConfig)[] = ["location", "timezone", "printer"];
+    const validKeys: (keyof ReceiptConfig)[] = [
+      "location",
+      "timezone",
+      "printer",
+      "printermodel",
+    ];
 
     if (!validKeys.includes(trimmedKey)) {
       throw new Error(
         `Invalid config key: ${trimmedKey}. Valid keys: ${validKeys.join(", ")}`,
+      );
+    }
+
+    if (trimmedKey === "printermodel" && !PRINTER_MODELS.includes(value as never)) {
+      throw new Error(
+        `Invalid printer model: ${value}. Valid models: ${PRINTER_MODELS.join(", ")}`,
       );
     }
 

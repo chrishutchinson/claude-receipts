@@ -13,6 +13,7 @@ import { ConfigManager } from "../core/config-manager.js";
 import { LocationDetector } from "../utils/location.js";
 import type { SessionEndHookData } from "../types/session-hook.js";
 import type { ReceiptData } from "../core/receipt-generator.js";
+import type { PrinterModel } from "../types/config.js";
 
 const execAsync = promisify(exec);
 
@@ -23,6 +24,7 @@ export interface GenerateOptions {
   output?: string[];
   location?: string;
   printer?: string;
+  printermodel?: PrinterModel;
 }
 
 export class GenerateCommand {
@@ -184,18 +186,25 @@ export class GenerateCommand {
   private async outputToPrinter(
     receiptData: ReceiptData,
     options: GenerateOptions,
-    config: { printer?: string },
+    config: { printer?: string; printermodel?: PrinterModel },
     spinner: ReturnType<typeof ora>,
   ): Promise<void> {
     const printerInterface = options.printer || config.printer;
     if (!printerInterface) {
       throw new Error(
-        'No printer specified. Use --printer <name> or set via: claude-receipts config --set printer=EPSON_TM_T88V',
+        'No printer specified. Use --printer <name> or set via: claude-receipts config --set printer=usb',
       );
     }
 
+    const printerModel = options.printermodel || config.printermodel;
+
     spinner.start("Sending to printer...");
-    await this.thermalPrinter.printReceipt(receiptData, printerInterface);
+    await this.thermalPrinter.printReceipt(
+      receiptData,
+      printerInterface,
+      undefined,
+      printerModel,
+    );
     spinner.succeed(`Receipt sent to printer: ${printerInterface}`);
   }
 
