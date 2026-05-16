@@ -1,4 +1,7 @@
 import { execa } from "execa";
+import { readdir, stat } from "fs/promises";
+import { homedir } from "os";
+import { join } from "path";
 import type {
   CcusageResponse,
   CcusageSession,
@@ -123,7 +126,7 @@ export class DataFetcher {
    *
    * @param sessionQuery Optional filter — matches against:
    *   1. Project path UUID (or prefix, e.g. "5ede5ccb")
-   *   2. Session name (e.g. "subagents") — picks the most recent match
+   *   2. Exact session ID (e.g. ccusage's `sessionId` field)
    *   If omitted, returns the first session with a valid project path.
    */
   async fetchSessionData(sessionQuery?: string): Promise<CcusageSession> {
@@ -144,10 +147,12 @@ export class DataFetcher {
         (s) => s.projectPath && s.projectPath !== "Unknown Project",
       );
 
+      // ccusage 18.x reports `projectPath: "Unknown Project"` for every
+      // entry and aggregates per-project rather than per-session. Fall back
+      // to scanning ~/.claude/projects/ directly to locate the most recent
+      // transcript and fetch its accurate totals via --id.
       if (validSessions.length === 0) {
-        throw new Error(
-          "No sessions with valid project paths found. Please run this command from a SessionEnd hook.",
-        );
+        return await this.findSessionViaFilesystem(sessionQuery);
       }
 
       let match: CcusageSession | undefined;
@@ -212,5 +217,87 @@ export class DataFetcher {
   async getMostRecentSessionId(): Promise<string> {
     const sessionData = await this.fetchSessionData();
     return sessionData.sessionId;
+  }
+
+  /**
+   * Locate the most recent (or query-matched) transcript by scanning
+   * ~/.claude/projects/<slug>/<uuid>.jsonl directly, then fetch its
+   * accurate totals via `ccusage session --id`.
+   *
+   * Used when ccusage's session list aggregates per-project (returning
+   * `projectPath: "Unknown Project"` for every entry) and so cannot
+   * resolve a real session UUID on its own.
+   */
+  private async findSessionViaFilesystem(
+    sessionQuery?: string,
+  ): Promise<CcusageSession> {
+    const projectsDir = join(homedir(), ".claude", "projects");
+
+    let projectDirs: string[];
+    try {
+      projectDirs = await readdir(projectsDir);
+    } catch {
+      throw new Error(
+        `No session data found and cannot read ${projectsDir}`,
+      );
+    }
+
+    type Candidate = { slug: string; uuid: string; mtime: number };
+    const candidates: Candidate[] = [];
+
+    for (const slug of projectDirs) {
+      const dirPath = join(projectsDir, slug);
+      let entries: string[];
+      try {
+        entries = await readdir(dirPath);
+      } catch {
+        continue;
+      }
+      for (const entry of entries) {
+        if (!entry.endsWith(".jsonl")) continue;
+        const uuid = entry.slice(0, -".jsonl".length);
+        try {
+          const s = await stat(join(dirPath, entry));
+          candidates.push({ slug, uuid, mtime: s.mtimeMs });
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      throw new Error(
+        `No transcript files found in ${projectsDir}`,
+      );
+    }
+
+    candidates.sort((a, b) => b.mtime - a.mtime);
+
+    let pick: Candidate | undefined;
+    if (!sessionQuery) {
+      pick = candidates[0];
+    } else {
+      pick = candidates.find(
+        (c) =>
+          c.uuid === sessionQuery ||
+          c.uuid.startsWith(sessionQuery) ||
+          c.slug === sessionQuery ||
+          c.slug.startsWith(sessionQuery),
+      );
+    }
+
+    if (!pick) {
+      const sample = candidates
+        .slice(0, 10)
+        .map((c) => `  ${c.uuid.slice(0, 8)}  ${c.slug}`)
+        .join("\n");
+      throw new Error(
+        `No session matching "${sessionQuery}". Recent sessions:\n${sample}`,
+      );
+    }
+
+    const accurate = await this.fetchSessionById(pick.uuid);
+    accurate.projectPath = `${pick.slug}/${pick.uuid}`;
+    return accurate;
   }
 }

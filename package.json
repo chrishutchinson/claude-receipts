@@ -27,7 +27,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "claude-code",
@@ -58,6 +59,7 @@
     "@types/geoip-lite": "^1.4.4",
     "@types/node": "^24.1.0",
     "@types/prompts": "^2.4.9",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.6"
   }
 }

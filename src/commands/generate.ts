@@ -13,6 +13,7 @@ import { ConfigManager } from "../core/config-manager.js";
 import { LocationDetector } from "../utils/location.js";
 import type { SessionEndHookData } from "../types/session-hook.js";
 import type { ReceiptData } from "../core/receipt-generator.js";
+import type { PrinterModel } from "../types/config.js";
 
 const execAsync = promisify(exec);
 
@@ -23,6 +24,7 @@ export interface GenerateOptions {
   output?: string[];
   location?: string;
   printer?: string;
+  printermodel?: PrinterModel;
 }
 
 export class GenerateCommand {
@@ -136,7 +138,6 @@ export class GenerateCommand {
             case "html":
               await this.outputToHtml(
                 receiptData,
-                receipt,
                 actualSessionId || sessionData.sessionId,
                 transcriptData.sessionSlug,
                 isFromHook,
@@ -184,18 +185,24 @@ export class GenerateCommand {
   private async outputToPrinter(
     receiptData: ReceiptData,
     options: GenerateOptions,
-    config: { printer?: string },
+    config: { printer?: string; printermodel?: PrinterModel },
     spinner: ReturnType<typeof ora>,
   ): Promise<void> {
     const printerInterface = options.printer || config.printer;
     if (!printerInterface) {
       throw new Error(
-        'No printer specified. Use --printer <name> or set via: claude-receipts config --set printer=EPSON_TM_T88V',
+        'No printer specified. Use --printer <name> or set via: claude-receipts config --set printer=usb',
       );
     }
 
+    const printerModel = options.printermodel || config.printermodel;
+
     spinner.start("Sending to printer...");
-    await this.thermalPrinter.printReceipt(receiptData, printerInterface);
+    await this.thermalPrinter.printReceipt(
+      receiptData,
+      printerInterface,
+      printerModel,
+    );
     spinner.succeed(`Receipt sent to printer: ${printerInterface}`);
   }
 
@@ -204,7 +211,6 @@ export class GenerateCommand {
    */
   private async outputToHtml(
     receiptData: ReceiptData,
-    receipt: string,
     sessionId: string,
     sessionSlug: string | undefined,
     isFromHook: boolean,
@@ -214,7 +220,7 @@ export class GenerateCommand {
     const outputDir = `${home}/.claude-receipts/projects`;
     const fullPath = `${outputDir}/${fileName}.html`;
 
-    const html = this.htmlRenderer.generateHtml(receiptData, receipt);
+    const html = this.htmlRenderer.generateHtml(receiptData);
     await this.saveHtmlFile(html, fullPath);
 
     if (isFromHook) {
@@ -280,29 +286,6 @@ export class GenerateCommand {
         borderColor: "cyan",
       }),
     );
-  }
-
-  /**
-   * Save receipt to a file
-   */
-  private async saveToFile(
-    receipt: string,
-    outputPath: string,
-    sessionId: string,
-  ): Promise<void> {
-    const { writeFile, mkdir } = await import("fs/promises");
-    const { dirname, resolve } = await import("path");
-
-    const resolvedPath = resolve(this.expandPath(outputPath));
-    const dir = dirname(resolvedPath);
-
-    // Ensure directory exists
-    await mkdir(dir, { recursive: true });
-
-    // Write receipt to file
-    await writeFile(resolvedPath, receipt, "utf-8");
-
-    console.log(chalk.green(`Receipt saved to: ${resolvedPath}`));
   }
 
   /**

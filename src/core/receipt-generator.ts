@@ -5,7 +5,6 @@ import {
   formatCurrency,
   formatNumber,
   formatDateTime,
-  formatDuration,
 } from "../utils/formatting.js";
 import { getHeader, SEPARATOR, LIGHT_SEPARATOR } from "../utils/ascii-art.js";
 
@@ -173,27 +172,6 @@ export class ReceiptGenerator {
   private centerText(text: string, width: number): string {
     const padding = Math.max(0, Math.floor((width - text.length) / 2));
     return " ".repeat(padding) + text;
-  }
-
-  /**
-   * Wrap text to a given width
-   */
-  private wrapText(text: string, width: number): string {
-    const words = text.split(" ");
-    const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      if (currentLine.length + word.length + 1 <= width) {
-        currentLine += (currentLine ? " " : "") + word;
-      } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = word;
-      }
-    }
-
-    if (currentLine) lines.push(currentLine);
-    return lines.join("\n");
   }
 
   /**

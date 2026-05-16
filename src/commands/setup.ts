@@ -120,7 +120,7 @@ export class SetupCommand {
       }
       if (outputs.includes("printer")) {
         tips.push(
-          "Receipts will be sent to your thermal printer (configure with: claude-receipts config --set printer=<name>)",
+          "Receipts will be sent to your thermal printer (configure with: claude-receipts config --set printer=<name>; if you have a TM-T88VII, also run: claude-receipts config --set printermodel=t88vii)",
         );
       }
       console.log(chalk.cyan(tips.join("\n") + "\n"));

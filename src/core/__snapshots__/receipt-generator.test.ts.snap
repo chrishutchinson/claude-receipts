@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ReceiptGenerator.generateReceipt > produces a stable snapshot for a representative input 1`] = `
+"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     ▐▛███▜▌
+    ▝▜█████▛▘
+      ▘▘ ▝▝   
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    Location: San Francisco, CA
+  Session: quirky-crafting-floyd
+      2026-05-16 03:30:00 PDT
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ITEM           QTY            PRICE
+───────────────────────────────────
+Claude Sonnet 4.5
+  Input tokens     1,000      $0.23
+  Output tokens      500      $0.12
+  Cache write       200       $0.05
+  Cache read       100        $0.02
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUBTOTAL                      $0.42
+───────────────────────────────────
+TOTAL                         $0.42
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CASHIER: Claude Sonnet 4.5
+
+      Thank you for building!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+`;
