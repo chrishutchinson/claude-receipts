@@ -30,7 +30,7 @@ export class TranscriptParser {
 
     const firstUserMessage = userMessages[0];
     const firstPrompt = this.extractPromptText(firstUserMessage);
-    const sessionSlug = firstUserMessage?.slug || "unknown-session";
+    const sessionSlug = this.deriveSessionSlug(messages, firstUserMessage);
 
     // Calculate duration
     const timestamps = messages
@@ -49,6 +49,35 @@ export class TranscriptParser {
       assistantMessageCount: assistantMessages.length,
       totalMessages: messages.length,
     };
+  }
+
+  /**
+   * Produce a human-readable session slug. Prefers a `slug` field on the
+   * first user message if present (legacy transcripts), otherwise derives
+   * `<project-basename>-<uuid-prefix>` from `cwd` and `sessionId`.
+   */
+  private deriveSessionSlug(
+    messages: TranscriptMessage[],
+    firstUserMessage: TranscriptMessage | undefined,
+  ): string {
+    if (firstUserMessage?.slug) {
+      return firstUserMessage.slug;
+    }
+
+    const cwd = firstUserMessage?.cwd ?? messages.find((m) => m.cwd)?.cwd;
+    const sessionId =
+      firstUserMessage?.sessionId ??
+      messages.find((m) => m.sessionId)?.sessionId;
+
+    const projectName = cwd
+      ? cwd.split(/[\\/]/).filter(Boolean).pop()
+      : undefined;
+    const uuidPrefix = sessionId ? sessionId.slice(0, 8) : undefined;
+
+    if (projectName && uuidPrefix) return `${projectName}-${uuidPrefix}`;
+    if (projectName) return projectName;
+    if (uuidPrefix) return uuidPrefix;
+    return "unknown-session";
   }
 
   /**

@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const execaMock = vi.hoisted(() => vi.fn());
+const readdirMock = vi.hoisted(() => vi.fn());
+const statMock = vi.hoisted(() => vi.fn());
 vi.mock("execa", () => ({ execa: execaMock }));
+vi.mock("fs/promises", () => ({
+  readdir: readdirMock,
+  stat: statMock,
+}));
 
 const { DataFetcher } = await import("./data-fetcher.js");
 
 beforeEach(() => {
   execaMock.mockReset();
+  readdirMock.mockReset();
+  statMock.mockReset();
 });
 
 function mockById(payload: object) {
@@ -162,17 +170,111 @@ describe("DataFetcher.fetchSessionById", () => {
 describe("DataFetcher.fetchSessionData", () => {
   const fetcher = new DataFetcher();
 
-  it("filters out sessions with no project path", async () => {
+  it("falls back to filesystem scan when ccusage returns only 'Unknown Project' entries", async () => {
     mockList({
       sessions: [
-        { sessionId: "a", projectPath: "Unknown Project", totalCost: 0 },
-        { sessionId: "b", projectPath: undefined, totalCost: 0 },
+        { sessionId: "-Users-me-proj", projectPath: "Unknown Project", totalCost: 0 },
       ],
       totals: {},
     });
+    readdirMock.mockResolvedValueOnce(["-Users-me-proj"]);
+    readdirMock.mockResolvedValueOnce([
+      "aaaa-uuid.jsonl",
+      "bbbb-uuid.jsonl",
+    ]);
+    statMock.mockResolvedValueOnce({ mtimeMs: 1000 });
+    statMock.mockResolvedValueOnce({ mtimeMs: 2000 });
+    mockById({
+      sessionId: "bbbb-uuid",
+      totalCost: 1.5,
+      totalTokens: 200,
+      entries: [
+        {
+          timestamp: "t",
+          inputTokens: 200,
+          outputTokens: 0,
+          model: "m",
+          costUSD: 1.5,
+        },
+      ],
+    });
+
+    const result = await fetcher.fetchSessionData();
+    expect(result.sessionId).toBe("bbbb-uuid");
+    expect(result.projectPath).toBe("-Users-me-proj/bbbb-uuid");
+    expect(result.totalCost).toBe(1.5);
+  });
+
+  it("throws a clear error when filesystem fallback has no transcripts", async () => {
+    mockList({
+      sessions: [
+        { sessionId: "-Users-me-proj", projectPath: "Unknown Project", totalCost: 0 },
+      ],
+      totals: {},
+    });
+    readdirMock.mockResolvedValueOnce([]);
 
     await expect(fetcher.fetchSessionData()).rejects.toThrow(
-      /No sessions with valid project paths/,
+      /No transcript files found/,
+    );
+  });
+
+  it("matches by UUID prefix inside the filesystem fallback", async () => {
+    mockList({
+      sessions: [
+        { sessionId: "-Users-me-proj", projectPath: "Unknown Project", totalCost: 0 },
+      ],
+      totals: {},
+    });
+    readdirMock.mockResolvedValueOnce(["-Users-me-proj"]);
+    readdirMock.mockResolvedValueOnce([
+      "aaaa1111-rest.jsonl",
+      "bbbb2222-rest.jsonl",
+    ]);
+    // aaaa is OLDER but the query targets it explicitly
+    statMock.mockResolvedValueOnce({ mtimeMs: 1000 });
+    statMock.mockResolvedValueOnce({ mtimeMs: 2000 });
+    mockById({
+      sessionId: "aaaa1111-rest",
+      totalCost: 0.42,
+      totalTokens: 50,
+      entries: [
+        { timestamp: "t", inputTokens: 50, outputTokens: 0, model: "m", costUSD: 0.42 },
+      ],
+    });
+
+    const result = await fetcher.fetchSessionData("aaaa1111");
+    expect(result.sessionId).toBe("aaaa1111-rest");
+    expect(result.projectPath).toBe("-Users-me-proj/aaaa1111-rest");
+  });
+
+  it("throws 'No session matching' when filesystem fallback finds nothing for query", async () => {
+    mockList({
+      sessions: [
+        { sessionId: "-Users-me-proj", projectPath: "Unknown Project", totalCost: 0 },
+      ],
+      totals: {},
+    });
+    readdirMock.mockResolvedValueOnce(["-Users-me-proj"]);
+    readdirMock.mockResolvedValueOnce(["aaaa1111-rest.jsonl"]);
+    statMock.mockResolvedValueOnce({ mtimeMs: 1000 });
+
+    await expect(fetcher.fetchSessionData("nope")).rejects.toThrow(
+      /No session matching "nope"/,
+    );
+  });
+
+  it("throws a clear error when ~/.claude/projects cannot be read", async () => {
+    mockList({
+      sessions: [
+        { sessionId: "-Users-me-proj", projectPath: "Unknown Project", totalCost: 0 },
+      ],
+      totals: {},
+    });
+    readdirMock.mockRejectedValueOnce(new Error("ENOENT"));
+
+    await expect(fetcher.fetchSessionData()).rejects.toThrow(
+      /cannot read .*\.claude\/projects/,
     );
   });
 

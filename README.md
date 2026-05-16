@@ -160,8 +160,8 @@ Location is determined in this order:
 ## How It Works
 
 1. **SessionEnd Hook**: When you exit Claude Code, it calls `npx claude-receipts generate --output html` via stdin with the session ID
-2. **Data Collection**: The package calls `ccusage session --id <session-id>` to get accurate session token/cost data
-3. **Transcript Parsing**: Reads the session transcript JSONL to extract metadata (session name, timestamps, message count)
+2. **Data Collection**: The package calls `ccusage session --id <session-id>` to get accurate session token/cost data. In manual mode, when ccusage returns project-aggregated entries (recent ccusage versions), it scans `~/.claude/projects/` directly to locate the most recent transcript and then fetches its totals via `--id`.
+3. **Transcript Parsing**: Reads the session transcript JSONL to extract metadata (session name, timestamps, message count). The session name is derived as `<project-basename>-<uuid-prefix>` from the transcript's `cwd` and `sessionId`.
 
 ### HTML output
 
@@ -206,12 +206,9 @@ The receipt includes:
 
 ## Troubleshooting
 
-### "Cannot determine transcript path"
+### "No transcript files found in ~/.claude/projects/"
 
-This means you're trying to manually generate a receipt but the most recent session doesn't have a valid project path. Solutions:
-
-- Run from within a SessionEnd hook (use `setup` command)
-- Work in a Claude Code session and let it auto-generate
+Manual generation falls back to scanning `~/.claude/projects/` for the most recent transcript when ccusage returns project-aggregated entries. If you see this error, either you haven't used Claude Code yet (no transcripts written), or `~/.claude/projects/` is empty. Run a Claude Code session first.
 
 ### "No session data found"
 
@@ -264,6 +261,29 @@ Fix (switches the printer to behave like a TM-T88V on the wire):
 5. Save, then **power-cycle the printer** (a soft reset isn't always enough — the print pipeline only fully reattaches on a cold boot).
 
 ## Contributing
+
+```bash
+# Install dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Watch mode during development
+npm run dev
+
+# Run tests
+npm test
+
+# Watch tests
+npm run test:watch
+
+# Try the CLI locally without publishing
+npm link
+claude-receipts generate
+```
+
+PRs welcome — especially printer compatibility improvements.
 
 ## Roadmap
 

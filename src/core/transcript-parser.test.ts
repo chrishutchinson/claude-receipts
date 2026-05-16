@@ -50,7 +50,7 @@ describe("TranscriptParser", () => {
     expect(result.totalMessages).toBe(2);
   });
 
-  it("falls back to 'unknown-session' when slug missing", async () => {
+  it("falls back to 'unknown-session' when slug, cwd, and sessionId are all missing", async () => {
     const path = await writeJsonl([
       {
         type: "user",
@@ -60,6 +60,64 @@ describe("TranscriptParser", () => {
     ]);
     const result = await parser.parseTranscript(path);
     expect(result.sessionSlug).toBe("unknown-session");
+  });
+
+  it("derives slug from cwd basename + sessionId prefix when legacy slug is missing", async () => {
+    const path = await writeJsonl([
+      {
+        type: "user",
+        timestamp: "2026-05-16T10:00:00Z",
+        sessionId: "e048a51c-0f17-4a57-a70c-6df1e9f41241",
+        cwd: "/Users/me/Code/my-cool-project",
+        message: { content: "hi" },
+      },
+    ]);
+    const result = await parser.parseTranscript(path);
+    expect(result.sessionSlug).toBe("my-cool-project-e048a51c");
+  });
+
+  it("derives slug from non-user messages when first user message lacks cwd/sessionId", async () => {
+    const path = await writeJsonl([
+      {
+        type: "file-history-snapshot",
+        timestamp: "2026-05-16T10:00:00Z",
+        sessionId: "abc12345-rest-of-uuid",
+        cwd: "/Users/me/Code/another-project",
+      },
+      {
+        type: "user",
+        timestamp: "2026-05-16T10:00:01Z",
+        message: { content: "hi" },
+      },
+    ]);
+    const result = await parser.parseTranscript(path);
+    expect(result.sessionSlug).toBe("another-project-abc12345");
+  });
+
+  it("uses only project name when sessionId is missing", async () => {
+    const path = await writeJsonl([
+      {
+        type: "user",
+        timestamp: "2026-05-16T10:00:00Z",
+        cwd: "/Users/me/Code/lone-project",
+        message: { content: "hi" },
+      },
+    ]);
+    const result = await parser.parseTranscript(path);
+    expect(result.sessionSlug).toBe("lone-project");
+  });
+
+  it("uses only UUID prefix when cwd is missing", async () => {
+    const path = await writeJsonl([
+      {
+        type: "user",
+        timestamp: "2026-05-16T10:00:00Z",
+        sessionId: "deadbeef-cafe-1234-5678-abcdef012345",
+        message: { content: "hi" },
+      },
+    ]);
+    const result = await parser.parseTranscript(path);
+    expect(result.sessionSlug).toBe("deadbeef");
   });
 
   it("computes startTime and endTime from first/last timestamps", async () => {
